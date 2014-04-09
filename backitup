@@ -1,0 +1,79 @@
+#!/usr/bin/perl
+
+use strict;
+
+my $level = scalar(@ARGV) ? $ARGV[0] : 1;
+print "performing level $level tar\n";
+
+#### CONFIG
+	# BASIC
+	my $DATADIR = '/usr/local/Backup';	# local copy here
+	my @DIRS_TO_BACKUP = qw(/home/jay /etc/);
+	# if you want logging specify a filename here (relative to DATADIR)
+	my $LOGFILE = "backup.log";
+
+	# ENCRYPT
+	# if you want an encrypted copy of output (via "openssl des -k")
+	# set a passphrase. 
+	my $PASSPHRASE="";
+	my $ENCRYPTCOMMAND = "openssl des -k $PASSPHRASE"; # -in <tarfile> -out <tarfile>.des will be added
+
+	# REMOTE COPY
+	# if you want to send a copy of your backup somewhere else,
+	# set this ssh destination, and have pub key auth set up.
+	my $SSHDIR = "backups.purplewire.com:/backups/lxj";
+	# my $SSHDIR = "";
+	# if you want to remove local copy after ssh to remote, set this
+	my $REMOVELOCAL = 1;
+
+#### SHOULDN'T NEED TO CHANGE ANYTHING BELOW HERE
+
+chdir "$DATADIR";
+
+system "cp -f archive.snar archive.snar.0" if -e 'archive.snar';
+
+
+if ($LOGFILE) {
+	open LOG,">>$LOGFILE";
+} else {
+	open LOG,">>-";
+}
+my $lt = localtime();
+print LOG "opened log file\n";
+print LOG "$lt : level $level tar\n";
+
+my $bfile = "archive.$level.tgz";
+my $command = qq[
+tar --create -z
+	--level=$level 
+	--file=$bfile 
+	--listed-incremental=archive.snar 
+	--exclude-tag=MYCACHE.TAG 
+	@DIRS_TO_BACKUP
+];
+$command =~ s/\n/ /g;	# remove \n which help readability but cause shell command probs
+print "executing command: $command\n";
+my $tarout = `$command`;
+print LOG "$tarout\n";	
+
+if ($PASSPHRASE) {
+	my $bfile0 = $bfile;
+	$bfile .='.des';
+	my $des = "$ENCRYPTCOMMAND -in $bfile0 -out $bfile";
+	print "encrypting via command: $des\n";
+	my $desout = `$des`;
+	unlink $bfile0;		# get rid of unencrypted copy
+	print LOG "$desout\n";	
+}
+
+if ($SSHDIR) {
+	print "copying $bfile to $SSHDIR via scp\n";
+	my $ssh = "scp $bfile $SSHDIR/";
+	my $sshout = `$ssh`;
+	print LOG "$sshout\n";	
+	unlink $bfile if $REMOVELOCAL;
+}
+
+# jay mortensen 2014
+# LICENSE: do whatever you want with it
+# (but don't blame me)
