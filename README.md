@@ -9,6 +9,10 @@ supports tar listed-incremental mode, but with only level 0 and 1
 supports tar --exclude-tag=<tag> with tag MYCACHE.TAG -- put an empty
 file called MYCACHE.TAG in any directory you don't want backed up. 
 
+to restore, just decrypt the file(s) by hand if required: `openssl des -d -in archive.n.tgz.des -out archive.n.tgz`,
+enter the encryption key when prompted. then untar normally, starting with level 0 then level 1. no
+special tar options are needed on restore.
+
 ### why yet another backup script?
 
 the backup system i use on my servers is based on "dump" and doesn't do 
